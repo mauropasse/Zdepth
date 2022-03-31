@@ -210,6 +210,7 @@ void QuantizeDepthImage(
     int height,
     const uint16_t* depth,
     std::vector<uint16_t>& quantized);
+
 void DequantizeDepthImage(
     int width,
     int height,
@@ -315,6 +316,7 @@ protected:
         int height,
         const uint16_t* depth,
         const uint16_t* prev_depth);
+
     bool DecompressImage(
         int width,
         int height,

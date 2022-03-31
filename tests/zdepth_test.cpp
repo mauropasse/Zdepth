@@ -143,10 +143,10 @@ inline int DecodeVLE(int* &pBuffer, int& word, int& nibblesWritten)
 
 int CompressRVL(short* input, char* output, int numPixels)
 {
-    int word, nibblesWritten;
+    int word = 0;
+    int nibblesWritten = 0;
     int *pBuffer;
     int *buffer = pBuffer = (int*)output;
-    nibblesWritten = 0;
     short *end = input + numPixels;
     short previous = 0;
     while (input != end)
@@ -175,8 +175,7 @@ int CompressRVL(short* input, char* output, int numPixels)
 void DecompressRVL(char* input, short* output, int numPixels)
 {
     int word, nibblesWritten;
-    int *pBuffer;
-    int *buffer = pBuffer = (int*)input;
+    int * pBuffer = (int*)input;
     nibblesWritten = 0;
     short current, previous = 0;
     int numPixelsToDecode = numPixels;
@@ -252,7 +251,7 @@ bool TestFrame(const uint16_t* frame, bool keyframe)
         return false;
     }
 
-    for (int i = 0; i < depth.size(); ++i) {
+    for (size_t i = 0; i < depth.size(); ++i) {
         if (AzureKinectQuantizeDepth(depth[i]) != AzureKinectQuantizeDepth(frame[i])) {
             cout << "Decompression failed: Contents did not match at offset = " << i << endl;
             return false;
@@ -289,7 +288,7 @@ bool TestFrame(const uint16_t* frame, bool keyframe)
     DequantizeDepthImage(Width, Height, quantized.data(), depth);
     const uint64_t t8 = GetTimeUsec();
 
-    for (int i = 0; i < depth.size(); ++i) {
+    for (size_t i = 0; i < depth.size(); ++i) {
         if (AzureKinectQuantizeDepth(depth[i]) != AzureKinectQuantizeDepth(frame[i])) {
             cout << "Decompression failed: Contents did not match at offset = " << i << endl;
             return false;
