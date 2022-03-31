@@ -76,6 +76,11 @@ target_include_directories(zdepth PUBLIC
 add_executable(zdepth_test tests/zdepth_test.cpp)
 target_link_libraries(zdepth_test PRIVATE zdepth)
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+add_executable(zdepth_rvl_test tests/zdepth_rvl_test.cpp)
+target_link_libraries(zdepth_rvl_test PRIVATE zdepth Threads::Threads)
+
 
 ################################################################################
 # Install
