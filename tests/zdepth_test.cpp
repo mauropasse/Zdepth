@@ -210,9 +210,21 @@ void DecompressRVL(char* input, short* output, int numPixels)
 // Test Application
 
 #include <iostream>
+// #include <fstream>
+#include <iomanip>
+
 using namespace std;
+#define DEBUG_MODE
 
 static zdepth::DepthCompressor compressor, decompressor;
+
+std::vector<uint8_t> compressed;
+constexpr int total_pixels = Width * Height;
+constexpr unsigned original_bytes = total_pixels * 2;
+std::vector<uint16_t> quantized(total_pixels);
+std::vector<uint16_t> decompressed(total_pixels);
+std::vector<uint8_t> zstd_compressed;
+
 
 bool check_block_size()
 {
@@ -233,13 +245,12 @@ bool Zdepth_compress(
     const uint16_t* frame,
     bool keyframe)
 {
-    cout << endl;
-    cout << "===================================================================" << endl;
-    cout << "+ Zdepth Test: Keyframe=" << (keyframe?"Yes":"No") << endl;
-    cout << "===================================================================" << endl;
-
-    std::vector<uint8_t> compressed;
-    std::vector<uint16_t> decompressed;
+#ifdef DEBUG_MODE
+    // cout << endl;
+    // cout << "===================================================================" << endl;
+    // cout << "+ Zdepth Test: Keyframe=" << (keyframe?"Yes":"No") << endl;
+    // cout << "===================================================================" << endl;
+#endif
 
     const uint64_t t0 = GetTimeUsec();
     compressor.Compress(Width, Height, frame, compressed, keyframe);
@@ -268,14 +279,28 @@ bool Zdepth_compress(
         }
     }
 
-    const unsigned original_bytes = Width * Height * 2;
+#ifdef DEBUG_MODE
+    // cout << endl;
+    // cout << "Zdepth Compression: " << original_bytes << " bytes -> " << compressed.size() <<
+    //     " bytes (ratio = " << original_bytes / (float)compressed.size() << ":1) ("
+    //     << (compressed.size() * 30 * 8) / 1000000.f << " Mbps @ 30 FPS)" << endl;
+    // cout << "Zdepth Speed: Compressed in " << (t1 - t0) / 1000.f << " msec. Decompressed in " << (t2 - t1) / 1000.f << " msec" << endl;
+    // cout << "Compress + Decompress: " << (t2 - t0) / 1000.f << " msec." << std::endl << std::endl;
 
-    cout << endl;
-    cout << "Zdepth Compression: " << original_bytes << " bytes -> " << compressed.size() <<
-        " bytes (ratio = " << original_bytes / (float)compressed.size() << ":1) ("
-        << (compressed.size() * 30 * 8) / 1000000.f << " Mbps @ 30 FPS)" << endl;
-    cout << "Zdepth Speed: Compressed in " << (t1 - t0) / 1000.f << " msec. Decompressed in " << (t2 - t1) / 1000.f << " msec" << endl;
-    cout << "Compress + Decompress: " << (t2 - t0) / 1000.f << " msec." << std::endl;
+    cout << std::left << std::setw(15) << std::setfill(' ') << original_bytes;
+    cout << std::left << std::setw(15) << std::setfill(' ') << compressed.size();
+    cout << std::left << std::setw(15) << std::setfill(' ') << original_bytes / (float)compressed.size();
+    cout << std::left << std::setw(15) << std::setfill(' ') << (t1 - t0) / 1000.f;
+    cout << std::left << std::setw(15) << std::setfill(' ') << (t2 - t1) / 1000.f;
+    cout << std::left << std::setw(15) << std::setfill(' ') << 0;
+    cout << std::left << std::setw(15) << std::setfill(' ') << 0;
+    cout << std::left << std::setw(15) << std::setfill(' ') << 0;
+    cout << std::left << std::setw(15) << std::setfill(' ') << 0;
+    cout << std::left << std::setw(15) << std::setfill(' ') << 0;
+    cout << std::left << std::setw(15) << std::setfill(' ') << 0;
+    cout << std::left << std::setw(15) << std::setfill(' ') << (t2 - t0) / 1000.f << endl;
+#endif
+
 
     return true;
 }
@@ -285,20 +310,13 @@ bool RVL_compress(
     bool do_quantize,
     bool do_zstd_compress)
 {
-    cout << endl;
-    cout << "===================================================================" << endl;
-    cout << "+ RVL Test: Cuantize= " << (do_quantize?"Yes":"No")
-         << " / Zstd=" << (do_zstd_compress?"Yes":"No") << endl;
-    cout << "===================================================================" << endl;
-
-    // Vectors
-    std::vector<uint8_t> compressed;
-    std::vector<uint8_t> zstd_compressed;
-
-    const int total_pixels = Width * Height;
-    const unsigned original_bytes = total_pixels * 2;
-    std::vector<uint16_t> quantized(total_pixels);
-    std::vector<uint16_t> decompressed(total_pixels);
+#ifdef DEBUG_MODE
+    // cout << endl;
+    // cout << "===================================================================" << endl;
+    // cout << "+ RVL Test: Cuantize= " << (do_quantize?"Yes":"No")
+    //      << " / Zstd=" << (do_zstd_compress?"Yes":"No") << endl;
+    // cout << "===================================================================" << endl;
+#endif
 
     // Timestamps
 
@@ -357,109 +375,125 @@ bool RVL_compress(
         rvl_decompress_time = GetTimeUsec() - t2;
     }
 
-    if (do_quantize) {
-        for (size_t i = 0; i < decompressed.size(); ++i) {
-            if (AzureKinectQuantizeDepth(decompressed[i]) != AzureKinectQuantizeDepth(frame[i])) {
-                cout << "Decompression failed: Contents did not match at offset = " << i << endl;
-                return false;
-            }
-        }
-    } else {
-        for (size_t i = 0; i < decompressed.size(); ++i) {
-            if (decompressed[i] != frame[i]) {
-                cout << "Decompression failed: Contents did not match at offset = " << i << endl;
-                return false;
-            }
-        }
-    }
+#ifdef DEBUG_MODE
+    // if (do_quantize) {
+    //     for (size_t i = 0; i < decompressed.size(); ++i) {
+    //         if (AzureKinectQuantizeDepth(decompressed[i]) != AzureKinectQuantizeDepth(frame[i])) {
+    //             cout << "Decompression failed: Contents did not match at offset = " << i << endl;
+    //             return false;
+    //         }
+    //     }
+    // } else {
+    //     for (size_t i = 0; i < decompressed.size(); ++i) {
+    //         if (decompressed[i] != frame[i]) {
+    //             cout << "Decompression failed: Contents did not match at offset = " << i << endl;
+    //             return false;
+    //         }
+    //     }
+    // }
 
-
-    cout << endl;
-
+    // cout << endl;
+    size_t compressed_size;
+    float compression_ratio;
     if (do_zstd_compress) {
         if (do_quantize) {
-            cout << "Quantization+RVL+Zstd Compression: " << original_bytes << " bytes -> " << zstd_compressed.size()
-                 << " bytes (ratio = " << original_bytes / (float)zstd_compressed.size() << ":1) ("
-                 << (zstd_compressed.size() * 30 * 8) / 1000000.f << " Mbps @ 30 FPS)" << endl;
-            cout << "Quantization time: " << quantize_time / 1000.f << " msec. Dequantized in " << dequantize_time / 1000.f << " msec" << std::endl;
+            compressed_size = zstd_compressed.size();
+            compression_ratio = original_bytes / (float)compressed_size;
         } else {
-            cout << "RVL+Zstd Compression: " << original_bytes << " bytes -> " << zstd_compressed.size()
-                 << " bytes (ratio = " << original_bytes / (float)zstd_compressed.size() << ":1) ("
-                 << (zstd_compressed.size() * 30 * 8) / 1000000.f << " Mbps @ 30 FPS)" << endl;
+            compressed_size = zstd_compressed.size();
+            compression_ratio = original_bytes / (float)compressed_size;
         }
-        cout << "Zstd compress time: " << zstd_compress_time / 1000.f << " msec. Zstd decompress in " << zstd_decompress_time / 1000.f << " msec" << std::endl;
     } else {
         if (do_quantize) {
-            cout << "Quantization+RVL Compression: " << original_bytes << " bytes -> " << compressed.size()
-                 << " bytes (ratio = " << original_bytes / (float)compressed.size() << ":1) ("
-                 << (compressed.size() * 30 * 8) / 1000000.f << " Mbps @ 30 FPS)" << endl;
-            cout << "Quantization time: " << quantize_time / 1000.f << " msec. Dequantized in " << dequantize_time / 1000.f << " msec" << std::endl;
+            compressed_size = compressed.size();
+            compression_ratio = original_bytes / (float)compressed_size;
         } else {
-            cout << "RVL Compression: " << original_bytes << " bytes -> " << compressed.size()
-                 << " bytes (ratio = " << original_bytes / (float)compressed.size() << ":1)"
-                 << " (" << (compressed.size() * 30 * 8) / 1000000.f << " Mbps @ 30 FPS)" << endl;
+            compressed_size = compressed.size();
+            compression_ratio = original_bytes / (float)compressed_size;
         }
     }
-
-    cout << "RVL compress time: " <<  rvl_compress_time / 1000.f << " msec. RVL decompress in " << rvl_decompress_time / 1000.f << " msec" << std::endl;
 
     uint64_t total_compress = quantize_time + zstd_compress_time + rvl_compress_time;
     uint64_t total_decompress = dequantize_time + zstd_decompress_time + rvl_decompress_time;
-    cout << endl;
-    cout << "Total compress: " << total_compress / 1000.f << " msec. Total decompress: " << total_decompress / 1000.f << " msec" << std::endl;
-    cout << "Compress + Decompress: " << (total_compress + total_decompress) / 1000.f << " msec." << std::endl;
 
-    cout << endl;
+    cout << std::left << std::setw(15) << std::setfill(' ') << original_bytes;
+    cout << std::left << std::setw(15) << std::setfill(' ') << compressed_size;
+    cout << std::left << std::setw(15) << std::setfill(' ') << compression_ratio;
+    cout << std::left << std::setw(15) << std::setfill(' ') << 0;
+    cout << std::left << std::setw(15) << std::setfill(' ') << 0;
+    cout << std::left << std::setw(15) << std::setfill(' ') << quantize_time / 1000.f;
+    cout << std::left << std::setw(15) << std::setfill(' ') << dequantize_time / 1000.f;
+    cout << std::left << std::setw(15) << std::setfill(' ') << rvl_compress_time / 1000.f;
+    cout << std::left << std::setw(15) << std::setfill(' ') << rvl_decompress_time / 1000.f;
+    cout << std::left << std::setw(15) << std::setfill(' ') << zstd_compress_time / 1000.f;
+    cout << std::left << std::setw(15) << std::setfill(' ') << zstd_decompress_time / 1000.f;
+    cout << std::left << std::setw(15) << std::setfill(' ') << (total_compress + total_decompress) / 1000.f << endl;
+#endif
     return true;
 }
 
-void print_test_header(bool keyframe, bool do_quantize, bool do_zstd_compress)
+bool TestImage(const uint16_t* frame0)
 {
-}
 
-bool TestPattern(const uint16_t* frame0)
-{
     bool keyframe = true;
-    if (!Zdepth_compress(frame0, keyframe)) {
-        cout << "Failure: frame0 failed";
-        return false;
-    }
+    bool do_quantize;
+    bool do_zstd_compress;
 
-    keyframe = false;
-    if (!Zdepth_compress(frame0, keyframe)) {
-        cout << "Failure: frame0 failed";
-        return false;
-    }
+#ifdef DEBUG_MODE
+    cout << std::left << std::setw(15) << std::setfill(' ') << "Raw_size";
+    cout << std::left << std::setw(15) << std::setfill(' ') << "Comp_size";
+    cout << std::left << std::setw(15) << std::setfill(' ') << "Ratio";
+    cout << std::left << std::setw(15) << std::setfill(' ') << "Zdepth_C";
+    cout << std::left << std::setw(15) << std::setfill(' ') << "Zdepth_D";
+    cout << std::left << std::setw(15) << std::setfill(' ') << "Quantize_C";
+    cout << std::left << std::setw(15) << std::setfill(' ') << "Quantize_D";
+    cout << std::left << std::setw(15) << std::setfill(' ') << "RVL_C";
+    cout << std::left << std::setw(15) << std::setfill(' ') << "RVL_D";
+    cout << std::left << std::setw(15) << std::setfill(' ') << "Zstd_C";
+    cout << std::left << std::setw(15) << std::setfill(' ') << "Zstd_D";
+    cout << std::left << std::setw(15) << std::setfill(' ') << "Total" << endl;
+#endif
 
-    bool do_quantize = false;
-    bool do_zstd_compress = false;
+    for (int i=0; i < 1000; i++) {
+        // do_quantize = false;
+        // do_zstd_compress = false;
+        // if (!RVL_compress(frame0, do_quantize, do_zstd_compress)) {
+        //     cout << "Failure: RVL_compress failed";
+        //     return false;
+        // }
 
-    for (int i=0; i < 10; i++) {
-        if (!RVL_compress(frame0, do_quantize, do_zstd_compress)) {
+        // do_quantize = false;
+        // do_zstd_compress = true;
+        // if (!RVL_compress(frame0, do_quantize, do_zstd_compress)) {
+        //     cout << "Failure: RVL_compress failed";
+        //     return false;
+        // }
+
+        // do_quantize = true;
+        // do_zstd_compress = false;
+        // if (!RVL_compress(frame0, do_quantize, do_zstd_compress)) {
+        //     cout << "Failure: RVL_compress failed";
+        //     return false;
+        // }
+
+        // do_quantize = true;
+        // do_zstd_compress = true;
+        // if (!RVL_compress(frame0, do_quantize, do_zstd_compress)) {
+        //     cout << "Failure: RVL_compress failed";
+        //     return false;
+        // }
+
+        keyframe = true;
+        if (!Zdepth_compress(frame0, keyframe)) {
             cout << "Failure: frame0 failed";
             return false;
         }
-    }
 
-    do_quantize = false;
-    do_zstd_compress = true;
-    if (!RVL_compress(frame0, do_quantize, do_zstd_compress)) {
-        cout << "Failure: frame0 failed";
-        return false;
-    }
-
-    do_quantize = true;
-    do_zstd_compress = false;
-    if (!RVL_compress(frame0, do_quantize, do_zstd_compress)) {
-        cout << "Failure: frame0 failed";
-        return false;
-    }
-
-    do_quantize = true;
-    do_zstd_compress = true;
-    if (!RVL_compress(frame0, do_quantize, do_zstd_compress)) {
-        cout << "Failure: frame0 failed";
-        return false;
+        // keyframe = false;
+        // if (!Zdepth_compress(frame0, keyframe)) {
+        //     cout << "Failure: frame0 failed";
+        //     return false;
+        // }
     }
 
     return true;
@@ -475,7 +509,7 @@ int main(int argc, char* argv[])
     cout << "Test vector: Room 0" << endl;
     cout << "-------------------------------------------------------------------" << endl;
 
-    if (!TestPattern(TestVector0_Room0)) {
+    if (!TestImage(TestVector0_Room0)) {
         cout << "Test failure: Room test vector" << endl;
         return -1;
     }
