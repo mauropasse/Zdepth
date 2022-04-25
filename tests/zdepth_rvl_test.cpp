@@ -209,14 +209,14 @@ void DecompressRVL(char* input, short* output, int numPixels)
 //------------------------------------------------------------------------------
 // Test Application
 
-#include <iostream>
+#include <algorithm>
+#include <cassert>
+#include <dirent.h>
 #include <fstream>
 #include <iomanip>
-#include <filesystem>
-#include <cassert>
+#include <iostream>
 #include <set>
-
-namespace fs = std::filesystem;
+#include <vector>
 
 using namespace std;
 #define DEBUG_MODE
@@ -245,9 +245,9 @@ struct TimeStats
 void print_stats(TimeStats & stats)
 {
     cout << std::left << std::setw(20) << std::setfill(' ') << stats.frame_name;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.original_bytes;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.compressed_size;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.compression_ratio;
+    cout << std::left << std::setw(20) << std::setfill(' ') << stats.original_bytes;
+    cout << std::left << std::setw(20) << std::setfill(' ') << stats.compressed_size;
+    cout << std::left << std::setw(20) << std::setfill(' ') << stats.compression_ratio;
     cout << std::left << std::setw(15) << std::setfill(' ') << stats.zdepth_compress_time / 1000.f;
     cout << std::left << std::setw(15) << std::setfill(' ') << stats.zdepth_decompress_time / 1000.f;;
     cout << std::left << std::setw(15) << std::setfill(' ') << stats.quantize_time / 1000.f;
@@ -260,18 +260,14 @@ void print_stats(TimeStats & stats)
 }
 
 TimeStats Zdepth_compress(
-    const uint16_t* frame,
+    const uint16_t * frame,
     bool keyframe,
     int width,
     int height)
 {
     size_t total_pixels = width * height;
-    std::vector<uint16_t> quantized(total_pixels);
-    std::vector<uint16_t> decompressed(total_pixels);
     std::vector<uint8_t> compressed;
-    std::vector<uint8_t> zstd_compressed;
-
-    TimeStats stats;
+    std::vector<uint16_t> decompressed(total_pixels);
 
     const uint64_t t0 = GetTimeUsec();
     compressor.Compress(width, height, frame, compressed, keyframe);
@@ -299,6 +295,7 @@ TimeStats Zdepth_compress(
     //     }
     // }
 
+    TimeStats stats;
     stats.original_bytes = total_pixels * 2;
     stats.compressed_size = compressed.size();
     stats.compression_ratio = stats.original_bytes / (float)compressed.size();
@@ -564,34 +561,49 @@ int test_image_stream(Algorithm compression_algorithm)
     print_header(compression_algorithm);
 
     // Frame specs
-    // We have: 640x360 (robot), 640x480 (sim) and 848x480 (robot2)
-    constexpr uint16_t width = 848;
-    constexpr uint16_t height = 480;
-    constexpr size_t total_pixeles = width * height;
-    uint16_t depth_image[total_pixeles];
 
-    std::string path = "/home/mauro/irobot/sidereal/compression_algorithms/Zdepth/tests/depth_frames";
+    DIR *dir;
+    struct dirent * diread;
+    vector<std::string> files;
+
+    if ((dir = opendir("/data/depth_data/sim_depth_frames/")) != nullptr) {
+        while ((diread = readdir(dir)) != nullptr) {
+            files.push_back(diread->d_name);
+        }
+        closedir (dir);
+    } else {
+        perror ("opendir");
+        return EXIT_FAILURE;
+    }
 
     // Sort frames by name
-    std::set<fs::path> sorted_by_name;
-    for (auto &entry : fs::directory_iterator(path))
-      sorted_by_name.insert(entry.path());
+    std::sort(files.begin(), files.end());
 
     // Compress frames
-    for (const auto & entry : sorted_by_name) {
-        // Get frame name
-        std::string full_name = entry.c_str();
-        std::string filename = full_name.substr(full_name.find_last_of("/\\") + 1);
+    for (const auto & entry : files) {
+        // Frame params
+        // Resolutions:
+        //  640x360 (eYs3D), 640x480 (sim) and 848x480 (realsense)
+        constexpr uint16_t width = 640;
+        constexpr uint16_t height = 480;
+        constexpr size_t total_pixeles = width * height;
+        uint16_t depth_image[total_pixeles];
+
+        // Get frame full name
+        std::string full_name = "/data/depth_data/sim_depth_frames/" + entry;
 
         // Copy binary frame to image array
-        FILE* binary_depth_image = fopen(entry.c_str(), "rb");
+        FILE* binary_depth_image = fopen(full_name.c_str(), "rb");
         size_t ret = fread(depth_image, sizeof(uint16_t), total_pixeles, binary_depth_image);
-        (void) ret;
         fclose(binary_depth_image);
 
+        // Skip empty files
+        if (!ret) {
+          continue;
+        }
 
         // Compress frame
-        if (!CompressFrame(filename, depth_image, width, height, compression_algorithm)) {
+        if (!CompressFrame(entry, depth_image, width, height, compression_algorithm)) {
          return -1;
         }
     }

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(zdepth LANGUAGES CXX)
 include("cmake/zdepth-config-version.cmake")
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 
 
 ################################################################################
@@ -74,10 +74,10 @@ target_include_directories(zdepth PUBLIC
 # zdepth test application
 
 add_executable(zdepth_test tests/zdepth_test.cpp)
-target_link_libraries(zdepth_test PRIVATE zdepth stdc++fs)
+target_link_libraries(zdepth_test PRIVATE zdepth)
 
 add_executable(zdepth_rvl_test tests/zdepth_rvl_test.cpp)
-target_link_libraries(zdepth_rvl_test PRIVATE zdepth stdc++fs)
+target_link_libraries(zdepth_rvl_test PRIVATE zdepth)
 
 
 ################################################################################
