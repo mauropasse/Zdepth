@@ -215,6 +215,8 @@ void DecompressRVL(char* input, short* output, int numPixels)
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <thread>
+#include <pthread.h>
 #include <set>
 #include <vector>
 
@@ -242,21 +244,23 @@ struct TimeStats
     uint64_t total = 0;
 };
 
-void print_stats(TimeStats & stats)
+void print_stats(TimeStats * stats, size_t n_stats)
 {
-    cout << std::left << std::setw(20) << std::setfill(' ') << stats.frame_name;
-    cout << std::left << std::setw(20) << std::setfill(' ') << stats.original_bytes;
-    cout << std::left << std::setw(20) << std::setfill(' ') << stats.compressed_size;
-    cout << std::left << std::setw(20) << std::setfill(' ') << stats.compression_ratio;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.zdepth_compress_time / 1000.f;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.zdepth_decompress_time / 1000.f;;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.quantize_time / 1000.f;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.dequantize_time / 1000.f;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.rvl_compress_time / 1000.f;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.rvl_decompress_time / 1000.f;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.zstd_compress_time / 1000.f;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.zstd_decompress_time / 1000.f;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.total / 1000.f << endl;
+    for(size_t i = 0; i < n_stats; i++) {
+        cout << std::left << std::setw(20) << std::setfill(' ') << stats[i].frame_name;
+        cout << std::left << std::setw(20) << std::setfill(' ') << stats[i].original_bytes;
+        cout << std::left << std::setw(20) << std::setfill(' ') << stats[i].compressed_size;
+        cout << std::left << std::setw(20) << std::setfill(' ') << stats[i].compression_ratio;
+        cout << std::left << std::setw(15) << std::setfill(' ') << stats[i].zdepth_compress_time / 1000.f;
+        cout << std::left << std::setw(15) << std::setfill(' ') << stats[i].zdepth_decompress_time / 1000.f;;
+        cout << std::left << std::setw(15) << std::setfill(' ') << stats[i].quantize_time / 1000.f;
+        cout << std::left << std::setw(15) << std::setfill(' ') << stats[i].dequantize_time / 1000.f;
+        cout << std::left << std::setw(15) << std::setfill(' ') << stats[i].rvl_compress_time / 1000.f;
+        cout << std::left << std::setw(15) << std::setfill(' ') << stats[i].rvl_decompress_time / 1000.f;
+        cout << std::left << std::setw(15) << std::setfill(' ') << stats[i].zstd_compress_time / 1000.f;
+        cout << std::left << std::setw(15) << std::setfill(' ') << stats[i].zstd_decompress_time / 1000.f;
+        cout << std::left << std::setw(15) << std::setfill(' ') << stats[i].total / 1000.f << endl;
+    }
 }
 
 TimeStats Zdepth_compress(
@@ -427,15 +431,15 @@ enum class Algorithm
 
 bool CompressFrame(
     const std::string & frame_name,
-    const uint16_t* frame,
+    const uint16_t * frame,
     int width,
     int height,
-    Algorithm compression_algorithm)
+    Algorithm compression_algorithm,
+    TimeStats & average_stats)
 {
     int iterations_per_image = 1;
 
     TimeStats total_stats;
-    TimeStats average_stats;
 
     for (int i=0; i < iterations_per_image; i++) {
         TimeStats stats;
@@ -496,8 +500,6 @@ bool CompressFrame(
     average_stats.zstd_decompress_time = total_stats.zstd_decompress_time / iterations_per_image;
     average_stats.total = total_stats.total / iterations_per_image;
 
-    print_stats(average_stats);
-
     return true;
 }
 
@@ -532,27 +534,27 @@ int test_single_frames(Algorithm compression_algorithm)
 {
     print_header(compression_algorithm);
 
-    uint16_t width = Width;
-    uint16_t height = Height;
+    // uint16_t width = Width;
+    // uint16_t height = Height;
 
-    if (!CompressFrame("Room0", TestVector0_Room0, width, height, compression_algorithm)) {
-        return -1;
-    }
-    if (!CompressFrame("Room1", TestVector0_Room1, width, height, compression_algorithm)) {
-        return -1;
-    }
-    if (!CompressFrame("Ceiling0", TestVector1_Ceiling0, width, height, compression_algorithm)) {
-        return -1;
-    }
-    if (!CompressFrame("Ceiling1", TestVector1_Ceiling1, width, height, compression_algorithm)) {
-        return -1;
-    }
-    if (!CompressFrame("Person0", TestVector2_Person0, width, height, compression_algorithm)) {
-        return -1;
-    }
-    if (!CompressFrame("Person1", TestVector2_Person1, width, height, compression_algorithm)) {
-        return -1;
-    }
+    // if (!CompressFrame("Room0", TestVector0_Room0, width, height, compression_algorithm)) {
+    //     return -1;
+    // }
+    // if (!CompressFrame("Room1", TestVector0_Room1, width, height, compression_algorithm)) {
+    //     return -1;
+    // }
+    // if (!CompressFrame("Ceiling0", TestVector1_Ceiling0, width, height, compression_algorithm)) {
+    //     return -1;
+    // }
+    // if (!CompressFrame("Ceiling1", TestVector1_Ceiling1, width, height, compression_algorithm)) {
+    //     return -1;
+    // }
+    // if (!CompressFrame("Person0", TestVector2_Person0, width, height, compression_algorithm)) {
+    //     return -1;
+    // }
+    // if (!CompressFrame("Person1", TestVector2_Person1, width, height, compression_algorithm)) {
+    //     return -1;
+    // }
     return 0;
 }
 
@@ -566,7 +568,7 @@ int test_image_stream(Algorithm compression_algorithm)
     struct dirent * diread;
     vector<std::string> files;
 
-    if ((dir = opendir("/data/depth_data/sim_depth_frames/")) != nullptr) {
+    if ((dir = opendir("/home/mauro/irobot/sidereal/compression_algorithms/Zdepth/scripts/sim_depth_frames/")) != nullptr) {
         while ((diread = readdir(dir)) != nullptr) {
             files.push_back(diread->d_name);
         }
@@ -590,7 +592,7 @@ int test_image_stream(Algorithm compression_algorithm)
         uint16_t depth_image[total_pixeles];
 
         // Get frame full name
-        std::string full_name = "/data/depth_data/sim_depth_frames/" + entry;
+        std::string full_name = "/home/mauro/irobot/sidereal/compression_algorithms/Zdepth/scripts/sim_depth_frames/" + entry;
 
         // Copy binary frame to image array
         FILE* binary_depth_image = fopen(full_name.c_str(), "rb");
@@ -602,10 +604,47 @@ int test_image_stream(Algorithm compression_algorithm)
           continue;
         }
 
-        // Compress frame
-        if (!CompressFrame(entry, depth_image, width, height, compression_algorithm)) {
-         return -1;
+        constexpr uint8_t number_of_threads = 8;
+
+        if (total_pixeles % number_of_threads) {
+            cout << "Total pixeles not divisible in " << number_of_threads << " threads." << endl;
+            return -1;
         }
+
+        uint16_t * sub_frames[number_of_threads];
+        TimeStats sub_frames_stats[number_of_threads];
+
+        for (size_t i = 0; i < number_of_threads; i++) {
+          size_t offset = (total_pixeles / number_of_threads) * i;
+          sub_frames[i] = depth_image + offset;
+        }
+
+        constexpr uint16_t sub_frames_height = height / number_of_threads;
+
+        std::thread t0([&](){CompressFrame(entry, sub_frames[0], width, sub_frames_height, compression_algorithm, sub_frames_stats[0]);});
+        std::thread t1([&](){CompressFrame(entry, sub_frames[1], width, sub_frames_height, compression_algorithm, sub_frames_stats[1]);});
+        std::thread t2([&](){CompressFrame(entry, sub_frames[2], width, sub_frames_height, compression_algorithm, sub_frames_stats[2]);});
+        std::thread t3([&](){CompressFrame(entry, sub_frames[3], width, sub_frames_height, compression_algorithm, sub_frames_stats[3]);});
+        std::thread t4([&](){CompressFrame(entry, sub_frames[4], width, sub_frames_height, compression_algorithm, sub_frames_stats[4]);});
+        std::thread t5([&](){CompressFrame(entry, sub_frames[5], width, sub_frames_height, compression_algorithm, sub_frames_stats[5]);});
+        std::thread t6([&](){CompressFrame(entry, sub_frames[6], width, sub_frames_height, compression_algorithm, sub_frames_stats[6]);});
+        std::thread t7([&](){CompressFrame(entry, sub_frames[7], width, sub_frames_height, compression_algorithm, sub_frames_stats[7]);});
+
+        t0.join();
+        t1.join();
+        t2.join();
+        t3.join();
+        t4.join();
+        t5.join();
+        t6.join();
+        t7.join();
+
+        print_stats(sub_frames_stats, number_of_threads);
+
+        // Compress frame
+        // if (!CompressFrame(entry, depth_image, width, height, compression_algorithm)) {
+        //  return -1;
+        // }
     }
     return 0;
 }
