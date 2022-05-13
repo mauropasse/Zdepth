@@ -21,8 +21,21 @@ public:
         res.zdepth_decompress_time = zdepth_decompress_time + r.zdepth_decompress_time;
         res.total_compress = total_compress + r.total_compress;
         res.total_decompress = total_decompress + r.total_decompress;
-        res.total = total + r.total;
+        res.total_time = total_time + r.total_time;
         return res;
+    }
+
+    void average_time_stats(size_t n)
+    {
+        total_time /= n;
+        zdepth_compress_time /= n;
+        zdepth_decompress_time /= n;
+        quantize_time /= n;
+        dequantize_time /= n;
+        rvl_compress_time /= n;
+        rvl_decompress_time /= n;
+        zstd_compress_time /= n;
+        zstd_decompress_time /= n;
     }
 
 // Stats
@@ -39,7 +52,7 @@ public:
     uint64_t zdepth_decompress_time{0};
     uint64_t total_compress{0};
     uint64_t total_decompress{0};
-    uint64_t total{0};
+    uint64_t total_time{0};
 };
 
 class DepthFrame {
@@ -76,5 +89,5 @@ void print_stats(std::string frame_name, FrameStats & stats)
     cout << std::left << std::setw(15) << std::setfill(' ') << stats.rvl_decompress_time;
     cout << std::left << std::setw(15) << std::setfill(' ') << stats.zstd_compress_time;
     cout << std::left << std::setw(15) << std::setfill(' ') << stats.zstd_decompress_time;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.total << endl;
+    cout << std::left << std::setw(15) << std::setfill(' ') << stats.total_time << endl;
 }
