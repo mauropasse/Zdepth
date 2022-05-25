@@ -72,10 +72,10 @@ target_include_directories(zdepth PUBLIC
 )
 
 # zdepth test application
+# add_executable(zdepth_test tests/zdepth_test.cpp)
+# target_link_libraries(zdepth_test PRIVATE zdepth)
 
-add_executable(zdepth_test tests/zdepth_test.cpp)
-target_link_libraries(zdepth_test PRIVATE zdepth)
-
+# compression algorithm comparison application
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 add_executable(zdepth_rvl_test tests/zdepth_rvl_test.cpp)
