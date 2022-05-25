@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
 // Test Application
 
+#include <atomic>
 #include <algorithm>
 #include <cassert>
 #include <dirent.h>
@@ -187,12 +188,18 @@ enum class Algorithm
     ZDEPTH_NO_KEY_FRAME
 };
 
+std::atomic<bool> start(false);
+zdepth::DepthCompressor comp0, comp1, comp2, comp3, comp4, comp5, comp6, comp7;
+zdepth::DepthCompressor decomp0, decomp1, decomp2, decomp3, decomp4, decomp5, decomp6, decomp7;
+
 bool CompressFrame(
     DepthFrame & frame,
     Algorithm compression_algorithm,
     zdepth::DepthCompressor & comp,
     zdepth::DepthCompressor & decomp)
 {
+    while (!start) {};
+
     switch (compression_algorithm)
     {
     case Algorithm::RVL:
@@ -225,7 +232,7 @@ bool CompressFrame(
     return true;
 }
 
-void print_header(Algorithm compression_algorithm, size_t number_of_threads)
+void print_header(Algorithm compression_algorithm)
 {
     std::string algo;
     switch (compression_algorithm) {
@@ -237,19 +244,18 @@ void print_header(Algorithm compression_algorithm, size_t number_of_threads)
         case Algorithm::ZDEPTH_NO_KEY_FRAME: algo = "ZK=0"; break;
     }
     cout << endl;
-    cout << "n_threads:" << number_of_threads << endl;
     cout << std::left << std::setw(20) << std::setfill(' ') << "Frame_name";
     cout << std::left << std::setw(20) << std::setfill(' ') << "Raw_B_" + algo;
     cout << std::left << std::setw(20) << std::setfill(' ') << "Comp_B_" + algo;
     cout << std::left << std::setw(20) << std::setfill(' ') << "Ratio_"+ algo;
-    cout << std::left << std::setw(15) << std::setfill(' ') << "Zdepth_C";
-    cout << std::left << std::setw(15) << std::setfill(' ') << "Zdepth_D";
-    cout << std::left << std::setw(15) << std::setfill(' ') << "Quantize_C";
-    cout << std::left << std::setw(15) << std::setfill(' ') << "Quantize_D";
-    cout << std::left << std::setw(15) << std::setfill(' ') << "RVL_C";
-    cout << std::left << std::setw(15) << std::setfill(' ') << "RVL_D";
-    cout << std::left << std::setw(15) << std::setfill(' ') << "Zstd_C";
-    cout << std::left << std::setw(15) << std::setfill(' ') << "Zstd_D";
+    // cout << std::left << std::setw(15) << std::setfill(' ') << "Zdepth_C";
+    // cout << std::left << std::setw(15) << std::setfill(' ') << "Zdepth_D";
+    // cout << std::left << std::setw(15) << std::setfill(' ') << "Quantize_C";
+    // cout << std::left << std::setw(15) << std::setfill(' ') << "Quantize_D";
+    // cout << std::left << std::setw(15) << std::setfill(' ') << "RVL_C";
+    // cout << std::left << std::setw(15) << std::setfill(' ') << "RVL_D";
+    // cout << std::left << std::setw(15) << std::setfill(' ') << "Zstd_C";
+    // cout << std::left << std::setw(15) << std::setfill(' ') << "Zstd_D";
     cout << std::left << std::setw(15) << std::setfill(' ') << "Time_" + algo << endl;
 }
 
@@ -288,31 +294,61 @@ FrameStats multithread_compress(
 {
     auto chunks = divide_frame_into_chunks(frame, number_of_threads);
 
-    std::vector<zdepth::DepthCompressor> comp;
-    std::vector<zdepth::DepthCompressor> decomp;
+    uint64_t t0 = 0;
 
-    for (size_t i=0; i< number_of_threads; i++) {
-        comp.emplace_back(zdepth::DepthCompressor());
-        decomp.emplace_back(zdepth::DepthCompressor());
+    switch (number_of_threads)
+    {
+        case 1:
+        {
+            t0 = GetTimeUsec();
+            start = true;
+            CompressFrame(chunks[0], algo, comp0, decomp0);
+            break;
+        }
+        case 2:
+        {
+            std::thread t1([&]() {CompressFrame(chunks[1], algo, comp1, decomp1);});
+            t0 = GetTimeUsec();
+            start = true;
+            CompressFrame(chunks[0], algo, comp0, decomp0);
+            t1.join();
+            break;
+        }
+        case 4:
+        {
+            std::thread t1([&]() {CompressFrame(chunks[1], algo, comp1, decomp1);});
+            std::thread t2([&]() {CompressFrame(chunks[2], algo, comp2, decomp2);});
+            std::thread t3([&]() {CompressFrame(chunks[3], algo, comp3, decomp3);});
+            t0 = GetTimeUsec();
+            start = true;
+            CompressFrame(chunks[0], algo, comp0, decomp0);
+            t1.join(); t2.join(); t3.join();
+            break;
+        }
+        case 8:
+        {
+            std::thread t1([&]() {CompressFrame(chunks[1], algo, comp1, decomp1);});
+            std::thread t2([&]() {CompressFrame(chunks[2], algo, comp2, decomp2);});
+            std::thread t3([&]() {CompressFrame(chunks[3], algo, comp3, decomp3);});
+            std::thread t4([&]() {CompressFrame(chunks[4], algo, comp4, decomp4);});
+            std::thread t5([&]() {CompressFrame(chunks[5], algo, comp5, decomp5);});
+            std::thread t6([&]() {CompressFrame(chunks[6], algo, comp6, decomp6);});
+            std::thread t7([&]() {CompressFrame(chunks[7], algo, comp7, decomp7);});
+            t0 = GetTimeUsec();
+            start = true;
+            CompressFrame(chunks[0], algo, comp0, decomp0);
+            t1.join(); t2.join(); t3.join();  t4.join(); t5.join(); t6.join(); t7.join();
+            break;
+        }
+        default:
+        {
+            cout << "Wrong number of threads!" << endl;
+            assert(0);
+        }
     }
 
-    uint64_t start = GetTimeUsec();
-
-    // Start compression
-    // std::thread t1([&]() {CompressFrame(chunks[1], algo, comp[1], decomp[1]);});
-    // std::thread t2([&]() {CompressFrame(chunks[2], algo, comp[2], decomp[2]);});
-    // std::thread t3([&]() {CompressFrame(chunks[3], algo, comp[3], decomp[3]);});
-    // std::thread t4([&]() {CompressFrame(chunks[4], algo, comp[4], decomp[4]);});
-    // std::thread t5([&]() {CompressFrame(chunks[5], algo, comp[5], decomp[5]);});
-    // std::thread t6([&]() {CompressFrame(chunks[6], algo, comp[6], decomp[6]);});
-    // std::thread t7([&]() {CompressFrame(chunks[7], algo, comp[7], decomp[7]);});
-
-    // Single Thread
-    CompressFrame(chunks[0], algo, comp[0], decomp[0]);
-
-    // t1.join(); //t2.join(); t3.join(); // t4.join(); t5.join(); t6.join(); t7.join();
-
-    uint64_t end = GetTimeUsec();
+    uint64_t t1 = GetTimeUsec();
+    start = false;
 
     FrameStats total_stats;
 
@@ -321,23 +357,23 @@ FrameStats multithread_compress(
         total_stats = total_stats + chunks[i].stats_;
     }
 
-    total_stats.total_time = end - start;
+    total_stats.total_time = t1 - t0;
     total_stats.compression_ratio = total_stats.uncompressed_size / (float)total_stats.compressed_size;
-    total_stats.zdepth_compress_time /= number_of_threads;
-    total_stats.zdepth_decompress_time /= number_of_threads;
-    total_stats.quantize_time /= number_of_threads;
-    total_stats.dequantize_time /= number_of_threads;
-    total_stats.rvl_compress_time /= number_of_threads;
-    total_stats.rvl_decompress_time /= number_of_threads;
-    total_stats.zstd_compress_time /= number_of_threads;
-    total_stats.zstd_decompress_time /= number_of_threads;
+    // total_stats.zdepth_compress_time /= number_of_threads;
+    // total_stats.zdepth_decompress_time /= number_of_threads;
+    // total_stats.quantize_time /= number_of_threads;
+    // total_stats.dequantize_time /= number_of_threads;
+    // total_stats.rvl_compress_time /= number_of_threads;
+    // total_stats.rvl_decompress_time /= number_of_threads;
+    // total_stats.zstd_compress_time /= number_of_threads;
+    // total_stats.zstd_decompress_time /= number_of_threads;
 
     return total_stats;
 }
 
 int test_single_frames(Algorithm compression_algorithm, size_t number_of_threads)
 {
-    print_header(compression_algorithm, number_of_threads);
+    print_header(compression_algorithm);
 
     std::vector<DepthFrame> single_frames;
     std::vector<FrameStats> single_frames_stats;
@@ -375,16 +411,19 @@ int test_single_frames(Algorithm compression_algorithm, size_t number_of_threads
     return 0;
 }
 
-int test_image_stream(Algorithm compression_algorithm, size_t n_threads)
+int test_image_stream(
+    Algorithm compression_algorithm,
+    size_t n_threads,
+    const char * path)
 {
-    print_header(compression_algorithm, n_threads);
+    print_header(compression_algorithm);
 
     // Read frames from directory and compress/decompress them
     DIR *dir;
     struct dirent * diread;
     vector<std::string> files;
 
-    if ((dir = opendir("../../../3D-data/174/depth_frames/")) != nullptr) {
+    if ((dir = opendir(path)) != nullptr) {
         while ((diread = readdir(dir)) != nullptr) {
             files.push_back(diread->d_name);
         }
@@ -417,7 +456,7 @@ int test_image_stream(Algorithm compression_algorithm, size_t n_threads)
         uint16_t depth_image[total_pixeles];
 
         // Get frame full name
-        std::string full_name = "../../../3D-data/166/depth_frames/" + entry;
+        std::string full_name = std::string(path) + "/" + entry;
 
         // Copy binary frame to image array
         FILE* binary_depth_image = fopen(full_name.c_str(), "rb");
@@ -450,24 +489,36 @@ int test_image_stream(Algorithm compression_algorithm, size_t n_threads)
 
 int main(int argc, char* argv[])
 {
-    (void)(argc);
-    (void)(argv);
+    if (argc != 2) {
+      cout << "* * * Wrong argument * * *" << endl;
+      cout << "./zdepth_rvl_test <PATH_OF_DEPTH_IMAGES>" << endl;
+      return 0;
+    }
 
-    constexpr size_t n_threads = 1;
+    const char * path = argv[1];
 
-    // test_single_frames(Algorithm::RVL, n_threads);
-    // test_single_frames(Algorithm::RVL_QUANTIZE, n_threads);
-    // test_single_frames(Algorithm::RVL_ZSTD, n_threads);
-    // test_single_frames(Algorithm::RVL_QUANTIZE_ZSTD, n_threads);
-    // test_single_frames(Algorithm::ZDEPTH_KEY_FRAME, n_threads);
-    // test_single_frames(Algorithm::ZDEPTH_NO_KEY_FRAME, n_threads);
+    std::vector<size_t> threads = {1,2,4,8};
 
-    test_image_stream(Algorithm::RVL, n_threads);
-    test_image_stream(Algorithm::RVL_QUANTIZE, n_threads);
-    test_image_stream(Algorithm::RVL_ZSTD, n_threads);
-    test_image_stream(Algorithm::RVL_QUANTIZE_ZSTD, n_threads);
-    // test_image_stream(Algorithm::ZDEPTH_KEY_FRAME, n_threads);
-    // test_image_stream(Algorithm::ZDEPTH_NO_KEY_FRAME, n_threads);
+    for (auto n_threads : threads) {
+        cout << "\n* * * n_threads: " << n_threads << " * * *" << endl;
+
+        // test_single_frames(Algorithm::RVL, n_threads);
+        // test_single_frames(Algorithm::RVL_QUANTIZE, n_threads);
+        // test_single_frames(Algorithm::RVL_ZSTD, n_threads);
+        // test_single_frames(Algorithm::RVL_QUANTIZE_ZSTD, n_threads);
+        // test_single_frames(Algorithm::ZDEPTH_KEY_FRAME, n_threads);
+        // test_single_frames(Algorithm::ZDEPTH_NO_KEY_FRAME, n_threads);
+
+        test_image_stream(Algorithm::RVL, n_threads, path);
+        test_image_stream(Algorithm::RVL_QUANTIZE, n_threads, path);
+        test_image_stream(Algorithm::RVL_ZSTD, n_threads, path);
+        test_image_stream(Algorithm::RVL_QUANTIZE_ZSTD, n_threads, path);
+
+        if (n_threads == 1) {
+            test_image_stream(Algorithm::ZDEPTH_KEY_FRAME, n_threads, path);
+            test_image_stream(Algorithm::ZDEPTH_NO_KEY_FRAME, n_threads, path);
+        }
+    }
 
     return 0;
 }

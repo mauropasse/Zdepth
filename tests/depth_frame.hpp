@@ -81,13 +81,13 @@ void print_stats(std::string frame_name, FrameStats & stats)
     cout << std::left << std::setw(20) << std::setfill(' ') << stats.uncompressed_size;
     cout << std::left << std::setw(20) << std::setfill(' ') << stats.compressed_size;
     cout << std::left << std::setw(20) << std::setfill(' ') << stats.compression_ratio;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.zdepth_compress_time ;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.zdepth_decompress_time ;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.quantize_time;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.dequantize_time;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.rvl_compress_time;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.rvl_decompress_time;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.zstd_compress_time;
-    cout << std::left << std::setw(15) << std::setfill(' ') << stats.zstd_decompress_time;
+    // cout << std::left << std::setw(15) << std::setfill(' ') << stats.zdepth_compress_time ;
+    // cout << std::left << std::setw(15) << std::setfill(' ') << stats.zdepth_decompress_time ;
+    // cout << std::left << std::setw(15) << std::setfill(' ') << stats.quantize_time;
+    // cout << std::left << std::setw(15) << std::setfill(' ') << stats.dequantize_time;
+    // cout << std::left << std::setw(15) << std::setfill(' ') << stats.rvl_compress_time;
+    // cout << std::left << std::setw(15) << std::setfill(' ') << stats.rvl_decompress_time;
+    // cout << std::left << std::setw(15) << std::setfill(' ') << stats.zstd_compress_time;
+    // cout << std::left << std::setw(15) << std::setfill(' ') << stats.zstd_decompress_time;
     cout << std::left << std::setw(15) << std::setfill(' ') << stats.total_time << endl;
 }
